@@ -1,0 +1,14 @@
+*{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto}
+body{margin:0;background:#f7f7f9;color:#222}
+header{background:#fff;border-bottom:1px solid #ddd;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0}
+nav button{margin-right:8px}
+main{max-width:1000px;margin:24px auto;padding:0 16px}
+.section{display:none;background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.section.active{display:block}
+label{display:block;margin:8px 0}
+input,select,button{padding:8px;border:1px solid #ccc;border-radius:6px}
+table{width:100%;border-collapse:collapse;margin-top:12px}
+th,td{border:1px solid #eee;padding:8px;text-align:left}
+fieldset{border:1px dashed #bbb;border-radius:6px;margin-top:8px}
+.contato{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-top:8px}
+footer{max-width:1000px;margin:24px auto;padding:0 16px;color:#666}

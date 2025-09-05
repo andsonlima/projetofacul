@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestão de Pedal - Emergência</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<header>
+  <h1>Gestão de Pedal - Dados de Emergência</h1>
+  <nav>
+    <button onclick="showSection('cadastro')">Cadastro</button>
+    <button onclick="showSection('busca')">Busca</button>
+    <button onclick="showSection('listagem')">Listagem & Exportação</button>
+  </nav>
+</header>
+
+<main>
+  <!-- Cadastro -->
+  <section id="cadastro" class="section active">
+    <h2>Cadastro do Biker</h2>
+    <form id="cadastroForm">
+      <label>Nome completo
+        <input type="text" name="nome" required />
+      </label>
+
+      <label>Tipo de bike
+        <select name="tipo_bike" required>
+          <option value="">Selecione</option>
+          <option>MTB</option>
+          <option>SPEED</option>
+          <option>E-BIKE</option>
+        </select>
+      </label>
+
+      <label>Quais pedais participa
+        <select name="pedais_participa" required>
+          <option value="3A">3ª</option>
+          <option value="5A">5ª</option>
+          <option value="3A;5A">3ª e 5ª</option>
+        </select>
+      </label>
+
+      <label>Participa de trilha?
+        <select name="participa_trilha" required>
+          <option value="true">Sim</option>
+          <option value="false">Não</option>
+        </select>
+      </label>
+
+      <label>Problema de saúde?
+        <input type="text" name="problema_saude" placeholder="Deixe vazio para 'Não'"/>
+      </label>
+
+      <fieldset>
+        <legend>Contatos de emergência (opcional)</legend>
+        <div id="contatosContainer"></div>
+        <button type="button" id="addContatoBtn">+ Adicionar contato</button>
+      </fieldset>
+
+      <button type="submit">Salvar cadastro</button>
+      <p id="cadastroResult"></p>
+    </form>
+  </section>
+
+  <!-- Busca -->
+  <section id="busca" class="section">
+    <h2>Buscar Biker por Nome</h2>
+    <input type="text" id="buscaNome" placeholder="Digite o nome"/>
+    <button id="buscarBtn">Buscar</button>
+    <table id="buscaTabela">
+      <thead>
+        <tr><th>ID</th><th>Nome</th><th>Tipo</th><th>Pedais</th><th>Trilha</th><th>Ações</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- Listagem -->
+  <section id="listagem" class="section">
+    <h2>Listagem de Bikers</h2>
+    <button id="atualizarListaBtn">Atualizar lista</button>
+    <button id="exportarCsvBtn">Exportar CSV</button>
+    <a id="downloadLink" style="display:none;"></a>
+    <table id="listaTabela">
+      <thead>
+        <tr><th>ID</th><th>Nome</th><th>Tipo</th><th>Pedais</th><th>Trilha</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</main>
+
+<footer>
+  <small>Projeto acadêmico (GRUPO FACULDADE) - Gestão de Pedal</small>
+</footer>
+
+<script>
+const API = "http://127.0.0.1:8000";
+
+function showSection(id){
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// Cadastro
+const contatosContainer = document.getElementById('contatosContainer');
+document.getElementById('addContatoBtn').addEventListener('click', () => {
+  const wrap = document.createElement('div');
+  wrap.className = 'contato';
+  wrap.innerHTML = `
+    <input placeholder="Nome" class="c-nome"/>
+    <input placeholder="Parentesco" class="c-parentesco"/>
+    <input placeholder="Telefone" class="c-telefone"/>
+    <button type="button" class="rm">Remover</button>
+  `;
+  wrap.querySelector('.rm').addEventListener('click', () => wrap.remove());
+  contatosContainer.appendChild(wrap);
+});
+
+document.getElementById('cadastroForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const payload = {
+    nome: fd.get('nome'),
+    tipo_bike: fd.get('tipo_bike'),
+    pedais_participa: fd.get('pedais_participa'),
+    participa_trilha: fd.get('participa_trilha') === 'true',
+    problema_saude: fd.get('problema_saude') || null,
+    contatos_emergencia: Array.from(document.querySelectorAll('#contatosContainer .contato')).map(c => ({
+      nome: c.querySelector('.c-nome').value,
+      grau_parentesco: c.querySelector('.c-parentesco').value,
+      telefone: c.querySelector('.c-telefone').value
+    })).filter(c => c.nome && c.telefone)
+  };
+  try{
+    const r = await fetch(API + "/bikers", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+    if(!r.ok) throw new Error('Falha no cadastro');
+    const data = await r.json();
+    document.getElementById('cadastroResult').textContent = "Cadastrado com sucesso! ID " + data.id;
+    e.target.reset();
+    contatosContainer.innerHTML = "";
+  }catch(err){
+    document.getElementById('cadastroResult').textContent = "Erro: " + err.message;
+  }
+});
+
+// Busca
+document.getElementById('buscarBtn').addEventListener('click', async () => {
+  const nome = document.getElementById('buscaNome').value.trim();
+  const r = await fetch(API + "/bikers/busca?nome=" + encodeURIComponent(nome));
+  const data = await r.json();
+  const tbody = document.querySelector('#buscaTabela tbody');
+  tbody.innerHTML = "";
+  data.forEach(b => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${b.id}</td>
+      <td><input value="${b.nome}" data-id="${b.id}" class="e-nome"/></td>
+      <td>
+        <select class="e-tipo" data-id="${b.id}">
+          <option ${b.tipo_bike==='MTB'?'selected':''}>MTB</option>
+          <option ${b.tipo_bike==='SPEED'?'selected':''}>SPEED</option>
+          <option ${b.tipo_bike==='E-BIKE'?'selected':''}>E-BIKE</option>
+        </select>
+      </td>
+      <td>
+        <select class="e-pedais" data-id="${b.id}">
+          <option ${b.pedais_participa==='3A'?'selected':''}>3A</option>
+          <option ${b.pedais_participa==='5A'?'selected':''}>5A</option>
+          <option ${b.pedais_participa==='3A;5A'?'selected':''}>3A;5A</option>
+        </select>
+      </td>
+      <td>
+        <select class="e-trilha" data-id="${b.id}">
+          <option value="true" ${b.participa_trilha?'selected':''}>Sim</option>
+          <option value="false" ${!b.participa_trilha?'selected':''}>Não</option>
+        </select>
+      </td>
+      <td>
+        <button class="salvar" data-id="${b.id}">Salvar</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('.salvar').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      const row = btn.closest('tr');
+      const updates = {
+        nome: row.querySelector('.e-nome').value,
+        tipo_bike: row.querySelector('.e-tipo').value,
+        pedais_participa: row.querySelector('.e-pedais').value,
+        participa_trilha: row.querySelector('.e-trilha').value === 'true'
+      };
+      const r = await fetch(API + "/bikers/" + id, {
+        method: "PATCH",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(updates)
+      });
+      if(r.ok){
+        alert('Atualizado!');
+      }else{
+        alert('Erro ao atualizar');
+      }
+    });
+  });
+});
+
+// Listagem
+async function carregarLista(){
+  const r = await fetch(API + "/bikers");
+  const data = await r.json();
+  const tbody = document.querySelector('#listaTabela tbody');
+  tbody.innerHTML = "";
+  data.forEach(b => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${b.id}</td><td>${b.nome}</td><td>${b.tipo_bike}</td><td>${b.pedais_participa}</td><td>${b.participa_trilha ? 'Sim' : 'Não'}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+document.getElementById('atualizarListaBtn').addEventListener('click', carregarLista);
+
+// Exportação CSV
+document.getElementById('exportarCsvBtn').addEventListener('click', async () => {
+  const r = await fetch(API + "/export/csv");
+  const data = await r.json();
+  const blob = new Blob([data.content], {type: 'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.getElementById('downloadLink');
+  a.href = url;
+  a.download = data.filename;
+  a.style.display = 'inline';
+  a.textContent = "Clique para baixar: " + data.filename;
+  a.click();
+});
+
+// Carrega lista ao abrir
+carregarLista();
+
+</script>
+</body>
+</html>
